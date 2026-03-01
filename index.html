@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>No-Drama Sports Slot</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg-grad-start: #070b17;
+      --bg-grad-end: #0b1020;
+      --card: #131a2e;
+      --text: #e8ecff;
+      --muted: #9ca8d4;
+      --green: #16a34a;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --border: #273258;
+      --input-bg: #0c1430;
+      --item-bg: #0e1735;
+      --link: #93c5fd;
+    }
+    body.light-theme {
+      --bg: #f3f6ff;
+      --bg-grad-start: #f8fafc;
+      --bg-grad-end: #eaf0ff;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #d6e0ff;
+      --input-bg: #f8fbff;
+      --item-bg: #f8fbff;
+      --link: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { color: var(--muted); margin-top: 0; }
+    .grid { display: grid; gap: 10px; }
+    .grid.two { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px){ .grid.two { grid-template-columns: 1fr; } }
+    input, select {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; }
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-primary { background: var(--blue); }
+    .btn-danger { background: var(--red); }
+    .btn-secondary { background: #334155; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .badge { font-size: 12px; border-radius: 999px; padding: 4px 8px; display: inline-block; }
+    .joined { background: rgba(22,163,74,.16); color: #86efac; border: 1px solid rgba(22,163,74,.4); }
+    .waitlist { background: rgba(245,158,11,.16); color: #fde68a; border: 1px solid rgba(245,158,11,.4); }
+    .pill { border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; color: var(--muted); }
+    .list { display: grid; gap: 8px; }
+    .item { display: flex; justify-content: space-between; align-items: center; background: var(--item-bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .hidden { display: none; }
+    a { color: var(--link); }
+    .match-card { background:var(--item-bg); border:1px solid var(--border); border-radius:12px; padding:10px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
+    .ok { color: #86efac; }
+    .warn { color: #fde68a; }
+    .error { color: #fda4af; }
+    #supabaseConfigCard { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>🏸 No-Drama Sports Slot</h1>
+      <p>Supabase-powered: share match links, auto waitlist, running dashboard.</p>
+      <div class="row" style="justify-content:space-between;">
+        <div class="row">
+        <span class="pill">Vercel-ready</span>
+        <span class="pill">Supabase Postgres</span>
+        <span class="pill">Persistent multi-user data</span>
+        </div>
+        <button id="themeToggleBtn" class="btn-secondary" onclick="toggleTheme()">☀️ Light Theme</button>
+      </div>
+    </div>
+
+    <div class="card" id="supabaseConfigCard">
+      <h2>🔌 Supabase Config</h2>
+      <div class="grid two">
+        <div>
+          <label>Supabase URL</label>
+          <input id="sbUrl" placeholder="https://YOUR-PROJECT.supabase.co" />
+        </div>
+        <div>
+          <label>Supabase Anon Key</label>
+          <input id="sbKey" placeholder="eyJ..." />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-secondary" onclick="saveConfig()">Save Config</button>
+        <button class="btn-secondary" onclick="init(true)">Reconnect</button>
+      </div>
+      <div id="cfgStatus" class="small" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">📊 Match Dashboard</h2>
+        <div class="row">
+          <button class="btn-primary" onclick="location.hash=''; document.getElementById('createView').scrollIntoView({behavior:'smooth'});">+ Create Match</button>
+          <button class="btn-secondary" onclick="loadDashboard()">Refresh</button>
+        </div>
+      </div>
+      <h3 style="margin-top:14px;">⏭️ Upcoming</h3>
+      <div id="upcomingList" class="list"></div>
+      <h3 style="margin-top:14px;">🔥 Running</h3>
+      <div id="runningList" class="list"></div>
+      <h3 style="margin-top:14px;">🗂️ Past / Closed</h3>
+      <div id="closedList" class="list"></div>
+    </div>
+
+    <div id="createView" class="card">
+      <h2>Create Match</h2>
+      <div class="grid two">
+        <div>
+          <label>Title</label>
+          <input id="title" placeholder="Sunday Badminton" />
+        </div>
+        <div>
+          <label>Sport</label>
+          <select id="sport">
+            <option>Badminton</option>
+            <option>Cricket</option>
+            <option>Football</option>
+            <option>Basketball</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid two" style="margin-top:10px;">
+        <div>
+          <label>Location</label>
+          <input id="location" placeholder="Community Court A" />
+        </div>
+        <div>
+          <label>Start Time</label>
+          <input id="startTime" type="datetime-local" />
+        </div>
+      </div>
+      <div class="grid two" style="margin-top:10px;">
+        <div>
+          <label>Max Players</label>
+          <input id="maxPlayers" type="number" min="2" value="6" />
+        </div>
+        <div>
+          <label>Roster Lock Time</label>
+          <input id="lockTime" type="datetime-local" />
+        </div>
+      </div>
+      <div class="grid two" style="margin-top:10px;">
+        <div>
+          <label>Duration (minutes)</label>
+          <input id="duration" type="number" min="30" value="90" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn-primary" onclick="createMatch()">Create & Open Match</button>
+      </div>
+    </div>
+
+    <div id="matchView" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h2 id="matchTitle">Match</h2>
+            <div class="small" id="matchMeta"></div>
+            <div class="small" id="captainMeta"></div>
+          </div>
+          <span id="spotBadge" class="badge joined">Spots left: 0</span>
+        </div>
+
+        <h3 style="margin-top:14px;">Join / Leave</h3>
+        <div class="grid two">
+          <input id="playerName" placeholder="Your name" />
+          <input id="playerEmail" placeholder="Email" type="email" />
+        </div>
+        <div class="grid two" style="margin-top:10px;">
+          <input id="playerPhone" placeholder="Phone" />
+        </div>
+        <div style="margin-top:10px;" class="row">
+          <button id="joinBtn" class="btn-primary" onclick="joinMatch()">Join Match</button>
+          <button id="leaveBtn" class="btn-danger" onclick="leaveMatch()">Leave Match</button>
+        </div>
+
+        <div style="margin-top:10px;" class="small mono">
+          Share link: <a id="shareLink" href="#"></a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>✅ Joined</h3>
+        <div id="joinedList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3>🕓 Join Requests / Waitlist</h3>
+        <p class="small">Only the first joined player (captain) can approve people from this list.</p>
+        <div id="waitList" class="list"></div>
+      </div>
+
+      <div class="row" style="margin-bottom:20px;">
+        <button class="btn-secondary" onclick="location.hash=''; init()">Create New Match</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    let sbClient = null;
+
+    const byId = (id) => document.getElementById(id);
+    const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10));
+    const currentMatchId = () => location.hash.replace('#', '').trim();
+
+    function fmtIso(v) {
+      if (!v) return '—';
+      const dt = new Date(v);
+      if (Number.isNaN(dt.getTime())) return '—';
+      return dt.toLocaleString();
+    }
+
+    const SUPABASE_URL = 'https://wgovlulhgfqrmithooms.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indnb3ZsdWxoZ2Zxcm1pdGhvb21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNjQ3MjAsImV4cCI6MjA4Nzk0MDcyMH0.-NHzwzAD0KzgtjG64-9q8-4GQKPsZ3Y_12uaXa1faWE';
+
+    function config() {
+      return {
+        url: SUPABASE_URL,
+        key: SUPABASE_ANON_KEY
+      };
+    }
+
+    function saveConfig() {
+      byId('cfgStatus').innerHTML = '<span class="ok">Config is embedded for deployment.</span>';
+    }
+
+    async function connectSupabase() {
+      const { url, key } = config();
+      byId('sbUrl').value = url;
+      byId('sbKey').value = key;
+
+      if (!url || !key) {
+        byId('cfgStatus').innerHTML = '<span class="warn">Enter URL + anon key, then reconnect.</span>';
+        return false;
+      }
+
+      try {
+        sbClient = window.supabase.createClient(url, key);
+        const { error } = await sbClient.from('matches').select('id').limit(1);
+        if (error) throw error;
+        byId('cfgStatus').innerHTML = '<span class="ok">Connected to Supabase ✅</span>';
+        return true;
+      } catch (e) {
+        byId('cfgStatus').innerHTML = `<span class="error">Connection failed: ${e.message}</span>`;
+        return false;
+      }
+    }
+
+    function requireSb() {
+      if (!sbClient) {
+        alert('Supabase not connected yet. Reload and try again.');
+        return false;
+      }
+      return true;
+    }
+
+    async function getMatch(matchId) {
+      const { data: match, error: e1 } = await sbClient
+        .from('matches')
+        .select('*')
+        .eq('id', matchId)
+        .single();
+      if (e1) throw e1;
+
+      const { data: participants, error: e2 } = await sbClient
+        .from('participants')
+        .select('id,match_id,name,email,phone,status,created_at')
+        .eq('match_id', matchId)
+        .neq('status', 'left')
+        .order('created_at', { ascending: true });
+      if (e2) throw e2;
+
+      return { ...match, participants: participants || [] };
+    }
+
+    function getCaptain(match) {
+      const joined = (match.participants || []).filter(p => p.status === 'joined');
+      return joined.length ? joined[0] : null;
+    }
+
+    function spotsBadgeClass(spotsLeft) {
+      if (spotsLeft >= 3) return 'joined';
+      if (spotsLeft >= 1) return 'waitlist';
+      return '';
+    }
+
+    async function loadDashboard() {
+      const upcomingEl = byId('upcomingList');
+      const runningEl = byId('runningList');
+      const closedEl = byId('closedList');
+      if (!sbClient) {
+        upcomingEl.innerHTML = '<div class="small">Connect Supabase to load dashboard.</div>';
+        runningEl.innerHTML = '<div class="small">Connect Supabase to load dashboard.</div>';
+        closedEl.innerHTML = '<div class="small">—</div>';
+        return;
+      }
+      upcomingEl.innerHTML = '<div class="small">Loading...</div>';
+      runningEl.innerHTML = '<div class="small">Loading...</div>';
+      closedEl.innerHTML = '<div class="small">Loading...</div>';
+
+      const { data, error } = await sbClient
+        .from('running_matches')
+        .select('*')
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        const msg = `<div class="small error">Error: ${error.message}</div>`;
+        upcomingEl.innerHTML = msg;
+        runningEl.innerHTML = msg;
+        closedEl.innerHTML = '<div class="small">—</div>';
+        return;
+      }
+
+
+      const matchIds = (data || []).map(m => m.id);
+      let captainByMatch = {};
+      if (matchIds.length) {
+        const { data: joinedRows, error: captainErr } = await sbClient
+          .from('participants')
+          .select('match_id,name,created_at,status')
+          .in('match_id', matchIds)
+          .eq('status', 'joined')
+          .order('created_at', { ascending: true });
+        if (!captainErr && joinedRows) {
+          const joinedCountByMatch = {};
+          for (const row of joinedRows) {
+            joinedCountByMatch[row.match_id] = (joinedCountByMatch[row.match_id] || 0) + 1;
+            if (!captainByMatch[row.match_id]) captainByMatch[row.match_id] = row.name;
+          }
+          (data || []).forEach(m => { m.joined_count = joinedCountByMatch[m.id] || 0; });
+        }
+      }
+
+      const now = new Date();
+      const upcoming = [];
+      const running = [];
+      const closed = [];
+
+      (data || []).forEach(m => {
+        const start = new Date(m.start_time);
+        const end = new Date(m.end_time);
+        if (start > now) upcoming.push(m);
+        else if (end < now) closed.push(m);
+        else running.push(m);
+      });
+
+      const card = (m, tag='') => {
+        const spots = Math.max(0, Number(m.max_players || 0) - Number(m.joined_count || 0));
+        const spotClass = spotsBadgeClass(spots);
+        const captainName = captainByMatch[m.id] || 'TBD';
+        return `
+        <div class="match-card">
+          <div><strong>${m.title}</strong> • ${m.sport} ${tag}</div>
+          <div class="small">${m.location} • Start: ${fmtIso(m.start_time)} • Ends: ${fmtIso(m.end_time)}</div>
+          <div class="small">Captain: <strong>${captainName}</strong> <span class="badge" style="margin-left:6px;background:rgba(59,130,246,.16);color:#93c5fd;border:1px solid rgba(59,130,246,.4)">CAPTAIN MODE</span></div>
+          <div class="small">Max players: ${m.max_players} • <span class="badge ${spotClass}">Spots left: ${spots}</span></div>
+          <div style="margin-top:8px;"><a href="#${m.id}" onclick="init()">Open match</a></div>
+        </div>
+      `};
+
+      upcomingEl.innerHTML = upcoming.length
+        ? upcoming.map(m => card(m, '<span class="badge" style="background:rgba(59,130,246,.16);color:#93c5fd;border:1px solid rgba(59,130,246,.4)">UPCOMING</span>')).join('')
+        : '<div class="small">No upcoming matches.</div>';
+
+      runningEl.innerHTML = running.length
+        ? running.map(m => card(m, '<span class="badge joined">RUNNING</span>')).join('')
+        : '<div class="small">No active matches right now.</div>';
+
+      closedEl.innerHTML = closed.length
+        ? closed.map(m => card(m, '<span class="badge" style="background:rgba(239,68,68,.16);color:#fda4af;border:1px solid rgba(239,68,68,.4)">CLOSED</span>')).join('')
+        : '<div class="small">No closed matches yet.</div>';
+    }
+
+    async function createMatch() {
+      if (!requireSb()) return;
+      const startRaw = byId('startTime').value;
+      if (!startRaw) return alert('Start time is required');
+
+      const row = {
+        id: uid(),
+        title: byId('title').value.trim() || 'Weekend Match',
+        sport: byId('sport').value,
+        location: byId('location').value.trim() || 'TBD',
+        start_time: new Date(startRaw).toISOString(),
+        lock_time: byId('lockTime').value ? new Date(byId('lockTime').value).toISOString() : null,
+        max_players: Math.max(2, Number(byId('maxPlayers').value || 6)),
+        duration_minutes: Math.max(30, Number(byId('duration').value || 90))
+      };
+
+      const { error } = await sbClient.from('matches').insert(row);
+      if (error) return alert(error.message);
+      location.hash = row.id;
+      await init();
+    }
+
+    async function joinMatch() {
+      if (!requireSb()) return;
+      const matchId = currentMatchId();
+      if (!matchId) return;
+
+      const name = byId('playerName').value.trim();
+      const email = byId('playerEmail').value.trim().toLowerCase();
+      const phone = byId('playerPhone').value.trim();
+      if (!name || !email || !phone) return alert('Name, email, and phone are required');
+
+      const match = await getMatch(matchId);
+      const endTime = new Date(new Date(match.start_time).getTime() + (Number(match.duration_minutes || 90) * 60000));
+      if (new Date() > endTime) {
+        return alert('This match is closed (past end time).');
+      }
+      if (match.lock_time && new Date() > new Date(match.lock_time)) {
+        return alert('Roster is locked for this match.');
+      }
+
+      const dup = match.participants.find(p => p.email.toLowerCase() === email || p.phone === phone);
+      if (dup) return alert('You are already joined/waitlisted.');
+
+      const joinedCount = match.participants.filter(p => p.status === 'joined').length;
+      const status = joinedCount === 0 ? 'joined' : 'waitlist';
+
+      const { error } = await sbClient.from('participants').insert({
+        id: uid(), match_id: matchId, name, email, phone, status
+      });
+      if (error) return alert(error.message);
+
+      const updated = await getMatch(matchId);
+      render(updated);
+      await loadDashboard();
+    }
+
+    async function leaveMatch() {
+      if (!requireSb()) return;
+      const matchId = currentMatchId();
+      if (!matchId) return;
+
+      const email = byId('playerEmail').value.trim().toLowerCase();
+      const phone = byId('playerPhone').value.trim();
+      if (!email && !phone) return alert('Enter email or phone to leave.');
+
+      let query = sbClient.from('participants').update({ status: 'left' }).eq('match_id', matchId).neq('status', 'left');
+      query = email ? query.eq('email', email) : query.eq('phone', phone);
+      const { error } = await query;
+      if (error) return alert(error.message);
+
+      // Promote first waitlisted if spot opens
+      const match = await getMatch(matchId);
+      const joinedCount = match.participants.filter(p => p.status === 'joined').length;
+      if (joinedCount < match.max_players) {
+        const next = match.participants.filter(p => p.status === 'waitlist')[0];
+        if (next) {
+          const { error: promoteErr } = await sbClient
+            .from('participants')
+            .update({ status: 'joined' })
+            .eq('id', next.id);
+          if (promoteErr) return alert(promoteErr.message);
+        }
+      }
+
+      const updated = await getMatch(matchId);
+      render(updated);
+      await loadDashboard();
+    }
+
+    async function approveParticipant(participantId) {
+      if (!requireSb()) return;
+      const matchId = currentMatchId();
+      const match = await getMatch(matchId);
+      const viewerEmail = byId('playerEmail').value.trim().toLowerCase();
+      const captain = getCaptain(match);
+      if (!captain || captain.email.toLowerCase() !== viewerEmail) {
+        return alert('Only the first joined player can approve requests.');
+      }
+
+      const joinedCount = match.participants.filter(p => p.status === 'joined').length;
+      if (joinedCount >= match.max_players) {
+        return alert('No spots left to approve right now.');
+      }
+
+      const { error } = await sbClient
+        .from('participants')
+        .update({ status: 'joined' })
+        .eq('id', participantId)
+        .eq('match_id', matchId)
+        .eq('status', 'waitlist');
+      if (error) return alert(error.message);
+
+      const updated = await getMatch(matchId);
+      render(updated);
+      await loadDashboard();
+    }
+
+    function render(match) {
+      byId('createView').classList.add('hidden');
+      byId('matchView').classList.remove('hidden');
+
+      const endTime = new Date(new Date(match.start_time).getTime() + (Number(match.duration_minutes || 90) * 60000));
+      const isClosed = new Date() > endTime;
+
+      byId('matchTitle').textContent = `${match.title} • ${match.sport}${isClosed ? ' • CLOSED' : ''}`;
+      byId('matchMeta').textContent = `${match.location} • Starts: ${fmtIso(match.start_time)} • Ends: ${fmtIso(endTime)} • Lock: ${fmtIso(match.lock_time)}`;
+      const captain = getCaptain(match);
+      byId('captainMeta').innerHTML = captain ? `Captain: <strong>${captain.name}</strong> <span class="badge" style="margin-left:6px;background:rgba(59,130,246,.16);color:#93c5fd;border:1px solid rgba(59,130,246,.4)">CAPTAIN MODE</span>` : 'Captain: TBD';
+
+      const joined = match.participants.filter(p => p.status === 'joined');
+      const wait = match.participants.filter(p => p.status === 'waitlist');
+
+      const spotsLeft = Math.max(0, match.max_players - joined.length);
+      byId('spotBadge').textContent = isClosed ? 'Closed' : `Spots left: ${spotsLeft}`;
+      byId('spotBadge').className = isClosed ? 'badge' : `badge ${spotsBadgeClass(spotsLeft)}`;
+      if (isClosed) {
+        byId('spotBadge').style.background = 'rgba(239,68,68,.16)';
+        byId('spotBadge').style.color = '#fda4af';
+        byId('spotBadge').style.border = '1px solid rgba(239,68,68,.4)';
+      } else {
+        byId('spotBadge').style.background = '';
+        byId('spotBadge').style.color = '';
+        byId('spotBadge').style.border = '';
+      }
+
+      byId('joinBtn').disabled = isClosed;
+      byId('joinBtn').style.opacity = isClosed ? '0.6' : '1';
+      byId('leaveBtn').disabled = false;
+
+      byId('shareLink').href = location.href;
+      byId('shareLink').textContent = location.href;
+
+      byId('joinedList').innerHTML = joined.length
+        ? joined.map((p, i) => `<div class="item"><span>${i+1}. ${p.name} <span class='small'>(${p.email}, ${p.phone})</span></span><span class="badge joined">JOINED</span></div>`).join('')
+        : '<div class="small">No confirmed players yet.</div>';
+
+      const viewerEmail = byId('playerEmail').value.trim().toLowerCase();
+      const isCaptain = captain && captain.email.toLowerCase() === viewerEmail;
+
+      byId('waitList').innerHTML = wait.length
+        ? wait.map((p, i) => `<div class="item"><span>${i+1}. ${p.name} <span class='small'>(${p.email}, ${p.phone})</span></span><span class="row"><span class="badge waitlist">REQUESTED</span>${isCaptain && !isClosed ? `<button class="btn-primary" style="padding:4px 8px;border-radius:8px" onclick="approveParticipant('${p.id}')">Approve</button>` : ''}</span></div>`).join('')
+        : '<div class="small">No pending join requests.</div>';
+    }
+
+    function applyTheme(theme) {
+      const light = theme === 'light';
+      document.body.classList.toggle('light-theme', light);
+      const btn = byId('themeToggleBtn');
+      if (btn) btn.textContent = light ? '🌙 Dark Theme' : '☀️ Light Theme';
+      localStorage.setItem('ndss-theme', light ? 'light' : 'dark');
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.contains('light-theme');
+      applyTheme(isLight ? 'dark' : 'light');
+    }
+
+    async function init(reconnect = false) {
+      if (reconnect || !sbClient) {
+        const ok = await connectSupabase();
+        if (!ok) {
+          byId('runningList').innerHTML = '<div class="small">Waiting for Supabase config...</div>';
+          const closedEl = byId('closedList'); if (closedEl) closedEl.innerHTML = '<div class="small">—</div>'; 
+          return;
+        }
+      }
+
+      await loadDashboard();
+      const id = currentMatchId();
+      if (!id) {
+        byId('createView').classList.remove('hidden');
+        byId('matchView').classList.add('hidden');
+        return;
+      }
+      try {
+        const match = await getMatch(id);
+        render(match);
+      } catch {
+        byId('createView').classList.remove('hidden');
+        byId('matchView').classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('hashchange', init);
+    applyTheme(localStorage.getItem('ndss-theme') || 'dark');
+    init();
+  </script>
+</body>
+</html>
